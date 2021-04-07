@@ -1,16 +1,23 @@
-# This is a sample Python script.
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+def main():
+    matrix_size = 500
+    classifications = ['k', 'w', 'r'] # different classes
+    # k - 0 - black
+    # w - 1 - white
+    # r - 2 - red
+    matrix = np.random.randint(len(classifications), size=(matrix_size, matrix_size))
+    print(matrix)
+    cmap = ListedColormap(['k', 'w', 'r'])
+    cax = plt.matshow(matrix, cmap=cmap)
+    plt.show()
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print_hi('PyCharm')
+    main()
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
