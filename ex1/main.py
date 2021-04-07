@@ -13,6 +13,10 @@ HEALTHY = 1
 SICK = 2
 HEALTHY_IMMUNE = 3
 
+P_HEALTHY_INFECTED_BY_SICK = 0.6
+P_HEALTHY_IMUNNED_INFECTED_BY_SICK = 0.2
+T = 10  # generation limit
+
 # classifications_colors = ['white', 'green', 'red', 'blue']
 classifications_colors = ['w', 'g', 'r', 'b']
 classifications_values = [EMPTY, HEALTHY, SICK, HEALTHY_IMMUNE]
@@ -88,16 +92,41 @@ LEFT = 7
 CURRENT = 8
 
 
+def get_person_health(world_map, i, j, neighbors_position):
+    current_health = world_map[i][j]
+    # check if have sick person around me
+    sick_near_me = False
+    for neighbor_pos in neighbors_position:
+        n_i, n_j = neighbor_pos[0], neighbor_pos[1]
+        neighbor_health = world_map[n_i][n_j]
+        if neighbor_health == SICK:
+            sick_near_me = True
+    if sick_near_me:
+        if current_health == HEALTHY:
+            current_health = np.random.choice([HEALTHY, SICK],
+                                              p=[1 - P_HEALTHY_INFECTED_BY_SICK, P_HEALTHY_INFECTED_BY_SICK])
+        elif current_health == HEALTHY_IMMUNE:
+            current_health = np.random.choice([HEALTHY_IMMUNE, SICK],
+                                              p=[1 - P_HEALTHY_IMUNNED_INFECTED_BY_SICK,
+                                                 P_HEALTHY_IMUNNED_INFECTED_BY_SICK])
+    return current_health
+
+
 def update(frameNum, img, world_map, N):
-    # copy grid since we require 8 neighbors
     new_world_map = world_map.copy()
     for i in range(N):
         for j in range(N):
             current_value = world_map[i][j]
             if current_value != EMPTY:
+                next_possible_move = get_next_possible_moves(i, j, N)
+                # decide new value for current cell
+                current_value = get_person_health(world_map, i, j, next_possible_move)
+                # moving to new position
+                choosing_array = [0, 1, 2, 3, 4, 5, 6, 7, 8]
                 for k in range(8):
-                    next_possible_move = get_next_possible_moves(i, j, N)
-                    next_pos = next_possible_move[np.random.randint(0, 8)]
+                    choice = np.random.choice(choosing_array)
+                    next_pos = next_possible_move[choice]
+                    choosing_array.remove(choice)
                     next_i, next_j = next_pos[0], next_pos[1]
                     if new_world_map[next_i][next_j] == EMPTY:
                         new_world_map[next_i][next_j] = current_value
@@ -109,16 +138,15 @@ def update(frameNum, img, world_map, N):
     world_map[:] = new_world_map[:]
     return img,
 
-
 def main():
     # set grid size
-    N = 10
-    Nh = 10  # healthy
-    Ns = 10  # sick
-    Nv = 15  # immune
+    N = 50
+    Nh = 200  # healthy
+    Ns = 1  # sick
+    Nv = 100  # immune
 
     # set animation update interval
-    updateInterval = 2000
+    updateInterval = 10
 
     # declare grid
     population_map = generate_random_population_map(world_size=N,
@@ -131,11 +159,12 @@ def main():
     cmap = ListedColormap(classifications_colors)
     img = axes.imshow(population_map, interpolation='nearest', cmap=cmap)
     ani = animation.FuncAnimation(figure, update, fargs=(img, population_map, N,),
-                                  frames=10,
+                                  frames=T,
                                   interval=updateInterval,
-                                  save_count=50)
-
+                                  save_count=50,
+                                  repeat=False)
     plt.show()
+    input()
 
 
 if __name__ == '__main__':
