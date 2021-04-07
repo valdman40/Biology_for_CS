@@ -3,15 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-# setting up the values for the grid
-ON = 255
-OFF = 0
-vals = [ON, OFF]
-
-EMPTY = 0
-HEALTHY = 1
-SICK = 2
-HEALTHY_IMMUNE = 3
+EMPTY = 0.0
+HEALTHY = 1.0
+SICK = 2.0
+HEALTHY_IMMUNE = 3.0
 
 P_HEALTHY_INFECTED_BY_SICK = 0.6
 P_HEALTHY_IMUNNED_INFECTED_BY_SICK = 0.2
@@ -138,12 +133,13 @@ def update(frameNum, img, world_map, N):
     world_map[:] = new_world_map[:]
     return img,
 
-def main():
+
+def get_result():
     # set grid size
-    N = 50
-    Nh = 200  # healthy
+    N = 15
+    Nh = 100  # healthy
     Ns = 1  # sick
-    Nv = 100  # immune
+    Nv = 50  # immune
 
     # set animation update interval
     updateInterval = 10
@@ -164,7 +160,62 @@ def main():
                                   save_count=50,
                                   repeat=False)
     plt.show()
-    input()
+    unique, counts = np.unique(population_map, return_counts=True)
+    dictionary = dict(zip(unique, counts))
+    if EMPTY in dictionary:
+        del dictionary[EMPTY]
+    if SICK in dictionary:
+        dictionary['SICK'] = dictionary[SICK]
+        del dictionary[SICK]
+    if HEALTHY in dictionary:
+        dictionary['HEALTHY'] = dictionary[HEALTHY]
+        del dictionary[HEALTHY]
+    if HEALTHY_IMMUNE in dictionary:
+        dictionary['HEALTHY_IMMUNE'] = dictionary[HEALTHY_IMMUNE]
+        del dictionary[HEALTHY_IMMUNE]
+    return dictionary
+
+
+def main():
+    count_healthy = 0
+    count_sick = 0
+    count_healthy_immune = 0
+    num_of_iterations = 10
+    x_axes = []
+    y_axes_healthy = []
+    y_axes_sick = []
+    y_axes_healthy_immune = []
+    for i in range(num_of_iterations):
+        x_axes.append(i)
+        dictionary = get_result()
+        healthy = 0
+        sick = 0
+        healthy_immune = 0
+        if 'SICK' in dictionary:
+            count_sick += dictionary['SICK']
+            sick += dictionary['SICK']
+        if 'HEALTHY' in dictionary:
+            count_healthy += dictionary['HEALTHY']
+            healthy += dictionary['HEALTHY']
+        if 'HEALTHY_IMMUNE' in dictionary:
+            count_healthy_immune += dictionary['HEALTHY_IMMUNE']
+            healthy_immune += dictionary['HEALTHY_IMMUNE']
+        y_axes_sick.append(sick)
+        y_axes_healthy.append(healthy)
+        y_axes_healthy_immune.append(healthy_immune)
+
+    plt.plot(x_axes, y_axes_healthy, label="healthy")
+    plt.plot(x_axes, y_axes_sick, label="sick")
+    plt.plot(x_axes, y_axes_healthy_immune, label="healthy_immune")
+    plt.legend()
+    plt.show()
+    avg_healthy = count_healthy / num_of_iterations
+    avg_sick = count_sick / num_of_iterations
+    avg_healthy_immune = count_healthy_immune / num_of_iterations
+    print('avg_healthy:', avg_healthy)
+    print('avg_sick:', avg_sick)
+    print('avg_healthy_immune:', avg_healthy_immune)
+    # avg, T, P's, N start
 
 
 if __name__ == '__main__':
