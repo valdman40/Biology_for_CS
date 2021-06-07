@@ -5,16 +5,44 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import math
 
 
-def get_sum_different(l1: list[int], l2: list[int]):
-    return abs(sum(l1) - sum(l2))
+def get_fitness_sequence(segments: List[int], line_rules: List[int], n: int = 10):
+    sm = difflib.SequenceMatcher(None, segments, line_rules)
+    grade_sequence = sm.ratio()
+    return grade_sequence
 
 
-def get_bits_difference(line: List[bool], line_rules: List[int]):
-    segments = []
-    segment_length = 0
-    try:
+class Grid(object):
+    def __init__(self, g: list[list[bool]], n, grade_given=0):
+        self.grid = g
+        self.N = n
+        self.grade = grade_given
+
+    def get_grid(self):
+        return self.grid
+
+    def get_grade(self):
+        return self.grade
+
+    def get_fitness_line_By_line(self, lines: list[list[bool]], rules: list[list[int]]):
+        fitness = 0
+        for i, (line, rule) in enumerate(zip(lines, rules)):
+            fitness += self.get_line_fitness(line, rule)
+        return fitness
+
+    def fitness(self, rows_rules: list[list[int]], cols_rules: list[list[int]]):
+        grid_rows_fitness = self.get_fitness_line_By_line(self.grid, rows_rules)
+        grid_cols_fitness = self.get_fitness_line_By_line(zip(*self.grid), cols_rules)
+        grid_fitness = grid_rows_fitness + grid_cols_fitness
+        self.grade = grid_fitness
+        return grid_fitness
+
+    # get grade based on how close was the solution to the desired one
+    def get_line_fitness(self, line: List[bool], line_rules: List[int]):
+        segments = []
+        segment_length = 0
         for square in line:
             if not square:  # if we're at 0
                 segments.append(segment_length)
@@ -23,39 +51,46 @@ def get_bits_difference(line: List[bool], line_rules: List[int]):
                 segment_length += 1
         if segment_length > 0:
             segments.append(segment_length)
-    except:
-        x =3
+        retval = self.get_fitness_bits(segments, line_rules, self.N) + get_fitness_sequence(segments, line_rules,
+                                                                                                 self.N) * 5
+        return retval
 
-    bits_on_difference = get_sum_different(line_rules, segments)
-    return bits_on_difference
+    def get_bits_difference(self, segments: List[int], line_rules: List[int]):
+        bits_on_difference = self.get_sum_different(line_rules, segments)
+        return bits_on_difference
 
+    def get_fitness_bits(self, segments: List[int], line_rules: List[int], n: int = 10):
+        bits_on_difference = self.get_bits_difference(segments, line_rules)
+        grade_bits = (n - bits_on_difference) / n
+        return grade_bits
 
-def get_grade_bits(line: List[bool], line_rules: List[int], n: int = 10):
-    bits_on_difference = get_bits_difference(line, line_rules)
-    grade_bits = (n - bits_on_difference) / n
-    return grade_bits
+    def get_sum_different(self, l1: list[int], l2: list[int]):
+        return abs(sum(l1) - sum(l2))
 
+    def improve_line(self, line: list[bool], rule: list[int]):
+        # switch 1 bit
+        if self.get_bits_difference(line, rule) > 0:
+            i = random.randrange(0, self.N)
+            line[i] = not line[i]
+        # replace 2 bits
+        if get_fitness_sequence(line, rule, self.N) < 1:
+            i, j = random.randrange(0, self.N), random.randrange(0, self.N)
+            line[i], line[j] = line[j], line[i]
 
-def get_grade_sequence(line: List[bool], line_rules: List[int], n: int = 10):
-    segments = []
-    segment_length = 0
-    for square in line:
-        if not square:  # if we're at 0
-            segments.append(segment_length)
-            segment_length = 0
-        else:
-            segment_length += 1
-    if segment_length > 0:
-        segments.append(segment_length)
-    sm = difflib.SequenceMatcher(None, segments, line_rules)
-    grade_sequence = sm.ratio()
-    return grade_sequence
+    def improve(self, line_rules: list[list[int]]):
+        for line, rule in zip(self.grid, line_rules):
+            self.improve_line(line, rule)
 
+    def copy(self):
+        copied = []
+        for g in self.grid:
+            copied.append(g.copy())
+        return Grid(copied, self.N, self.grade)
 
-# get grade based on how close was the solution to the desired one
-def get_grade(line: List[bool], line_rules: List[int], n: int = 10):
-    retval = get_grade_bits(line, line_rules, n) + get_grade_sequence(line, line_rules, n)
-    return retval
+    def mutate(self, p):
+        for line in self.grid:
+            for i in range(self.N):
+                line[i] = random.choices([line[i], not line[i]], [p, 1 - p], k=1)[0]
 
 
 # returns txt file as array where each cell represent line
@@ -96,89 +131,93 @@ def init_grid(N: int, p: float):
     return np.random.choice(a=[False, True], size=(N, N), p=[p, 1 - p]).tolist()
 
 
-def get_grades(grid: list[list[bool]], rules: list[list[int]], N: int):
-    grade = dict()
-    for i, (line, rule) in enumerate(zip(grid, rules)):
-        grade[f"line_{i}"] = (line, get_grade(line, rule, n=N))
-    return grade
-
-
-best_probability = 0  # for myself to see if i got better
-
-
 # returns array of lines according to their probablity
-def display_each_value_by_probability(rows_grade: dict[str, (list[bool], int)]):
-    global best_probability  # for myself to see if i got better
+def display_each_value_by_probability(grids: list[Grid]):
     arr = []
     probabilities = dict()
-    total_sum = sum([x[1] for x in rows_grade.values()])
-    for key in rows_grade.keys():
-        original_line = rows_grade[key][0]
-        probability = (rows_grade[key][1] / total_sum) * 100
-        # for myself to see if i got better
-        if probability > best_probability:
-            best_probability = probability
-            print('best', best_probability)
-        probabilities[key] = (original_line, probability)
-    for val in probabilities.values():
-        line, probability = val
-        for i in range(int(probability)):
-            arr.insert(0, line)
+    # get total sum of all grades
+    total_sum = 0
+    for grid in grids:
+        total_sum += grid.get_grade()
+
+    for grid in grids:
+        probability = (grid.get_grade() / total_sum) * 100
+        probabilities[grid] = int(math.ceil(probability))  # rounded
+    for grid, probability in probabilities.items():
+        for i in range(probability):
+            arr.insert(0, grid)
     return arr
 
 
 # generates child from parents details
-def get_new_child(parent1: list[bool], parent2: list[bool]):
-    place_to_cut = random.randrange(0, len(parent1))
-    new_child = parent1[:place_to_cut] + parent2[place_to_cut:]
+def get_new_grid_child(parent1: Grid, parent2: Grid, N: int):
+    place_to_cut = random.randrange(0, N)
+    parent1_grid = parent1.get_grid()
+    parent2_grid = parent2.get_grid()
+    new_child = Grid(parent1_grid[:place_to_cut] + parent2_grid[place_to_cut:], N)
+    new_child.mutate(p=0.05)
     return new_child
 
 
 # return new grid after changing it
-def get_new_grid_by_grades(rows_grade: dict[str, (list[bool], int)], N: int):
-    new_grid = []
-    arr = display_each_value_by_probability(rows_grade)
-    for i in range(N):
-        parent1 = random.choice(arr)
-        parent2 = random.choice(arr)
-        new_grid.append(get_new_child(parent1, parent2))
-    return new_grid
+def prepare_next_generation(grids: list[Grid], N: int):
+    new_grids = []
+    arr = display_each_value_by_probability(grids)
+    for _ in range(len(grids)):
+        grid_parent1: Grid = random.choice(arr)
+        grid_parent2: Grid = random.choice(arr)
+        new_grids.append(get_new_grid_child(grid_parent1, grid_parent2, N))
+    return new_grids
 
 
-def try_to_improve(grid: list[list[bool]], line_rules: list[list[int]]):
-    improved_grid = []
-    for line, rule in zip(grid, line_rules):
-        length = len(line)
-        if get_bits_difference(line, rule) > 0:
-            i = random.randrange(0, length)
-            line[i] = not line[i]
-        elif get_grade_sequence(line, rule, length) < 1:
-            i = random.randrange(0, length)
-            j = random.randrange(0, length)
-            line[i], line[j] = line[j], line[i]
-        improved_grid.append(line)
-    return improved_grid
+def calculate_grade_for_each_grid(grids: list[Grid], rows_rules: list[list[int]], cols_rules: list[list[int]]):
+    best_grid: Grid = grids[0]  # init
+    for grid in grids:
+        grid.fitness(rows_rules, cols_rules)  # so each grid will have grade calculated
+        if grid.get_grade() > best_grid.get_grade():
+            best_grid = grid
+    return best_grid
 
 
-def update(frameNum, img, grid: list[list[bool]], N: int, rows_rules: list[list[int]], cols_rules: list[list[int]]):
-    improved_grid = grid
-    for _ in range(50):
-        improved_grid = try_to_improve(improved_grid, rows_rules)
-    rows_grade = get_grades(improved_grid, rows_rules, N)
-    new_grid = get_new_grid_by_grades(rows_grade, N)
-    # cols_grade = get_grades(zip(*grid), rows_rules, N)
+global_girds = []
+best_grid_all_gen = None
+number_of_grids = 100
+total_frames = 0
 
-    img.set_data(new_grid)
+
+def update(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: list[list[int]]):
+    global global_girds, best_grid_all_gen, total_frames
+    total_frames += 1
+
+    # improve each grid
+    for grid in global_girds:
+        grid.improve(line_rules=rows_rules)
+
+    # get best grid
+    best_grid_current_gen = calculate_grade_for_each_grid(global_girds, rows_rules, cols_rules)
+    if best_grid_current_gen.get_grade() > best_grid_all_gen.get_grade():
+        best_grid_all_gen = best_grid_current_gen.copy()
+        print('best %.2f' % best_grid_all_gen.get_grade(), "| frame number %4d" % total_frames)
+
+    if total_frames % 200 == 0:
+        print("--------frame number %4d--------" % total_frames)
+
+    global_girds = prepare_next_generation(global_girds, N)
+    img.set_data(best_grid_all_gen.get_grid())
     return img,
 
 
 def main():
-    rows, cols = get_rows_cols_from_txt_file("fish.txt")
-    grid = init_grid(N=len(cols), p=0.5)
+    global global_girds, best_grid_all_gen
+    rows, cols = get_rows_cols_from_txt_file("10x10_1.txt")
+    N = len(cols)  # since every1 is square
+    for _ in range(number_of_grids):
+        global_girds.append(Grid(init_grid(N=N, p=0.5), N))
+    best_grid_all_gen = global_girds[0]  # init best grid
     figure, axes = plt.subplots()
     cmap = ListedColormap(['w', 'k'])
-    img = axes.imshow(grid, interpolation='nearest', cmap=cmap)
-    ani = animation.FuncAnimation(figure, update, fargs=(img, grid, len(grid), rows, cols),
+    img = axes.imshow(global_girds[0].get_grid(), interpolation='nearest', cmap=cmap)
+    ani = animation.FuncAnimation(figure, update, fargs=(img, N, rows, cols),
                                   frames=10,
                                   interval=10,  # millisecond to interval
                                   save_count=50,
