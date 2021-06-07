@@ -52,7 +52,7 @@ class Grid(object):
         if segment_length > 0:
             segments.append(segment_length)
         retval = self.get_fitness_bits(segments, line_rules, self.N) + get_fitness_sequence(segments, line_rules,
-                                                                                                 self.N) * 5
+                                                                                                 self.N) * 100
         return retval
 
     def get_bits_difference(self, segments: List[int], line_rules: List[int]):
@@ -209,7 +209,7 @@ def update(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: list[
 
 def main():
     global global_girds, best_grid_all_gen
-    rows, cols = get_rows_cols_from_txt_file("10x10_1.txt")
+    rows, cols = get_rows_cols_from_txt_file("5x5_1.txt")
     N = len(cols)  # since every1 is square
     for _ in range(number_of_grids):
         global_girds.append(Grid(init_grid(N=N, p=0.5), N))
