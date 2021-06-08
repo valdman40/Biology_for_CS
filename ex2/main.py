@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import math
 
-bonus_score = 3
+
 
 
 def get_segments(line):
@@ -206,6 +206,7 @@ best_grid_all_gen: Grid = None
 population_size = 300
 total_frames = 0
 inherit_after_improvement = True
+bonus_score = 3
 
 
 def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: list[list[int]],
