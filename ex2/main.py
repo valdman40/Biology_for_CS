@@ -8,6 +8,21 @@ import matplotlib.animation as animation
 import math
 
 
+def get_segments(line):
+    segments = []
+    segment_length = 0
+    for square in line:
+        if not square:  # if we're at 0
+            if segment_length > 0:
+                segments.append(segment_length)
+                segment_length = 0
+        else:
+            segment_length += 1
+    if segment_length > 0:
+        segments.append(segment_length)
+    return segments
+
+
 class Grid(object):
     def __init__(self, g: list[list[bool]], n, fitness=0):
         self.grid = g
@@ -20,16 +35,16 @@ class Grid(object):
     def get_grade(self):
         return self.fitness
 
-    def get_fitness_line_By_line(self, lines: list[list[bool]], rules: list[list[int]]):
+    def get_fitness_line_By_line(self, lines: list[list[bool]], rules: list[list[int]], rows_or_cols: str):
         fitness = 0
         for i, (line, rule) in enumerate(zip(lines, rules)):
-            fitness += self.get_line_fitness(line, rule)
+            fitness += self.get_line_fitness(line, rule, i, rows_or_cols)
         return fitness
 
     def set_fitness(self, rows_rules: list[list[int]], cols_rules: list[list[int]]):
-        grid_rows_fitness = self.get_fitness_line_By_line(self.grid, rows_rules)
+        grid_rows_fitness = self.get_fitness_line_By_line(self.grid, rows_rules, "row")
         grid_by_cols = zip(*self.grid)
-        grid_cols_fitness = self.get_fitness_line_By_line(grid_by_cols, cols_rules)
+        grid_cols_fitness = self.get_fitness_line_By_line(grid_by_cols, cols_rules, "cols")
         grid_fitness = grid_rows_fitness + grid_cols_fitness
         self.fitness = grid_fitness
 
@@ -37,27 +52,25 @@ class Grid(object):
         return self.fitness
 
     # get grade based on how close was the solution to the desired one
-    def get_line_fitness(self, line: List[bool], line_rules: List[int]):
-        segments = []
-        segment_length = 0
-        for square in line:
-            if not square:  # if we're at 0
-                segments.append(segment_length)
-                segment_length = 0
-            else:
-                segment_length += 1
-        if segment_length > 0:
-            segments.append(segment_length)
-        retval = get_fitness_bits_difference(segments, line_rules, self.N) + get_list_similarity(segments, line_rules) * 100
+    def get_line_fitness(self, line: List[bool], line_rules: List[int], i: int, rows_or_cols: str):
+        segments = get_segments(line)
+        a = get_line_bits_difference_score(segments, line_rules, self.N)
+        b = get_list_similarity(segments, line_rules)
+        retval = a + b
+        if retval >= 2:
+            retval *= 3
         return retval
 
     def improve_line(self, line: list[bool], rule: list[int]):
+        segments = get_segments(line)
         # switch 1 bit
-        if get_lists_sum_difference(line, rule) > 0:
+        if get_line_bits_difference_score(segments, rule) < 1:
             i = random.randrange(0, self.N)
             line[i] = not line[i]
+
+        segments = get_segments(line)
         # replace 2 bits
-        if get_list_similarity(line, rule) < 1:
+        if get_list_similarity(segments, rule) < 1:
             i, j = random.randrange(0, self.N), random.randrange(0, self.N)
             line[i], line[j] = line[j], line[i]
 
@@ -78,8 +91,8 @@ class Grid(object):
 
 
 # returns similarity between 2 lists
-def get_list_similarity(segments: List[int], line_rules: List[int]):
-    sm = difflib.SequenceMatcher(None, segments, line_rules)
+def get_list_similarity(l1: List[int], l2: List[int]):
+    sm = difflib.SequenceMatcher(None, l1, l2)
     grade_sequence = sm.ratio()
     return grade_sequence
 
@@ -94,7 +107,7 @@ def get_lists_sum_difference(segments: List[int], line_rules: List[int]):
 
 
 # returns fitness by bits similarity
-def get_fitness_bits_difference(segments: List[int], line_rules: List[int], n: int = 10):
+def get_line_bits_difference_score(segments: List[int], line_rules: List[int], n: int = 10):
     bits_on_difference = get_lists_sum_difference(segments, line_rules)
     grade_bits = (n - bits_on_difference) / n
     return grade_bits
@@ -138,7 +151,7 @@ def init_grid(N: int, p: float):
     return np.random.choice(a=[False, True], size=(N, N), p=[p, 1 - p]).tolist()
 
 
-# returns array of lines according to their probablity
+# returns array of lines according to their probability
 def display_each_value_by_probability(grids: list[Grid]):
     arr = []
     probabilities = dict()
@@ -186,9 +199,9 @@ def calculate_grade_for_each_grid(grids: list[Grid], rows_rules: list[list[int]]
     return best_grid
 
 
-current_gen_girds = []
-best_grid_all_gen = None
-population_size = 100
+current_gen_girds: list[Grid] = []
+best_grid_all_gen: Grid = None
+population_size = 300
 total_frames = 0
 
 
@@ -197,9 +210,13 @@ def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: l
     global current_gen_girds, best_grid_all_gen, total_frames
     total_frames += 1
 
-    # improve each grid
+    # improve each grid by rows
     for grid in current_gen_girds:
         grid.improve(line_rules=rows_rules)
+
+    # # improve each grid by cols
+    # for grid in current_gen_girds:
+    #     grid.improve(line_rules=rows_rules)
 
     # get best grid
     best_grid_current_gen = calculate_grade_for_each_grid(current_gen_girds, rows_rules, cols_rules)
@@ -217,7 +234,7 @@ def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: l
 
 def main():
     global current_gen_girds, best_grid_all_gen
-    rows, cols = get_rows_cols_from_txt_file("5x5_1.txt")
+    rows, cols = get_rows_cols_from_txt_file("5x5_2.txt")
     N = len(cols)  # since every1 is square
     for _ in range(population_size):
         current_gen_girds.append(Grid(init_grid(N=N, p=0.5), N))
