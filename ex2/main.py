@@ -203,20 +203,20 @@ current_gen_girds: list[Grid] = []
 best_grid_all_gen: Grid = None
 population_size = 300
 total_frames = 0
+inherit_after_improvement = False
 
 
-# activates each life cycle
 def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: list[list[int]]):
     global current_gen_girds, best_grid_all_gen, total_frames
     total_frames += 1
 
+    not_improved_grids: list[Grid] = []
     # improve each grid by rows
     for grid in current_gen_girds:
+        not_improved_grids.append(grid.copy())
         grid.improve(line_rules=rows_rules)
 
-    # # improve each grid by cols
-    # for grid in current_gen_girds:
-    #     grid.improve(line_rules=rows_rules)
+    calculate_grade_for_each_grid(not_improved_grids, rows_rules, cols_rules)
 
     # get best grid
     best_grid_current_gen = calculate_grade_for_each_grid(current_gen_girds, rows_rules, cols_rules)
@@ -227,14 +227,17 @@ def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: l
     if total_frames % 200 == 0:
         print("--------frame number %4d--------" % total_frames)
 
-    current_gen_girds = prepare_next_generation(current_gen_girds, N)
+    generation_to_inherit: list[Grid] = not_improved_grids
+    if inherit_after_improvement:
+        generation_to_inherit = current_gen_girds
+    current_gen_girds = prepare_next_generation(generation_to_inherit, N)
     img.set_data(best_grid_all_gen.get_grid())
     return img,
 
 
 def main():
     global current_gen_girds, best_grid_all_gen
-    rows, cols = get_rows_cols_from_txt_file("5x5_2.txt")
+    rows, cols = get_rows_cols_from_txt_file("5x5_1.txt")
     N = len(cols)  # since every1 is square
     for _ in range(population_size):
         current_gen_girds.append(Grid(init_grid(N=N, p=0.5), N))
