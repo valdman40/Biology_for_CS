@@ -203,7 +203,7 @@ current_gen_girds: list[Grid] = []
 best_grid_all_gen: Grid = None
 population_size = 300
 total_frames = 0
-inherit_after_improvement = False
+inherit_after_improvement = True
 
 
 def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: list[list[int]]):
