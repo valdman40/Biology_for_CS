@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import math
 
+bonus_score = 3
+
 
 def get_segments(line):
     segments = []
@@ -58,7 +60,7 @@ class Grid(object):
         b = get_list_similarity(segments, line_rules)
         retval = a + b
         if retval >= 2:
-            retval *= 3
+            retval *= bonus_score
         return retval
 
     def improve_line(self, line: list[bool], rule: list[int]):
@@ -206,7 +208,8 @@ total_frames = 0
 inherit_after_improvement = True
 
 
-def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: list[list[int]]):
+def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: list[list[int]],
+               best_possible_grade: int):
     global current_gen_girds, best_grid_all_gen, total_frames
     total_frames += 1
 
@@ -223,6 +226,8 @@ def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: l
     if best_grid_current_gen.get_grade() > best_grid_all_gen.get_grade():
         best_grid_all_gen = best_grid_current_gen.copy()
         print('best %.2f' % best_grid_all_gen.get_grade(), "| frame number %4d" % total_frames)
+        if best_grid_all_gen.get_grade() >= best_possible_grade:
+            print('this is the best you will get')
 
     if total_frames % 200 == 0:
         print("--------frame number %4d--------" % total_frames)
@@ -242,10 +247,13 @@ def main():
     for _ in range(population_size):
         current_gen_girds.append(Grid(init_grid(N=N, p=0.5), N))
     best_grid_all_gen = current_gen_girds[0]  # init best grid
+    best_possible_score = (2 * bonus_score) * (N * 2)
     figure, axes = plt.subplots()
     cmap = ListedColormap(['w', 'k'])
     img = axes.imshow(current_gen_girds[0].get_grid(), interpolation='nearest', cmap=cmap)
-    ani = animation.FuncAnimation(figure, life_cycle, fargs=(img, N, rows, cols),
+    ani = animation.FuncAnimation(figure,
+                                  func=life_cycle,
+                                  fargs=(img, N, rows, cols, best_possible_score),
                                   frames=10,
                                   interval=10,  # millisecond to interval
                                   save_count=50,
