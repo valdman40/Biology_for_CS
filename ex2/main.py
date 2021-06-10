@@ -1,11 +1,13 @@
 import difflib
-from typing import List
 from matplotlib.colors import ListedColormap
 import numpy as np
 import random
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import math
+from typing import List as list
+from typing import List
+import random as r
 
 
 class Grid(object):
@@ -168,6 +170,8 @@ def display_each_value_by_probability(grids: list[Grid]):
     # get total sum of all grades
     total_sum = 0
     for grid in grids:
+        if grid.get_fitness() == 0:
+            i = 1
         total_sum += grid.get_fitness()
 
     for grid in grids:
@@ -181,20 +185,33 @@ def display_each_value_by_probability(grids: list[Grid]):
 
 # generates child from parents details
 def cross_over(parent1: Grid, parent2: Grid, N: int):
-    grid_size = N  # N*N
+    grid_size = N*N  # N*N
     place_to_cut_grid = random.randrange(0, grid_size)
-    parent1_grid = parent1.get_grid()
-    parent2_grid = parent2.get_grid()
+    parent1_grid: list[bool] = []
+
+    for line in parent1.get_grid():
+        for cell in line:
+            parent1_grid.append(cell)
+    parent2_grid: list[bool] = []
+    for line in parent2.get_grid():
+        for cell in line:
+            parent2_grid.append(cell)
+
     if place_to_cut_grid % N == 0:
-        new_child = Grid(parent1_grid[:place_to_cut_grid] + parent2_grid[place_to_cut_grid:], N)
+        new_child = Grid(parent1.get_grid(), N)
     else:
-        place_to_cut_line = place_to_cut_grid % N
-        place_of_broken_line = int(place_to_cut_grid / N)
-        broken_line: list[bool] = parent1_grid[place_of_broken_line][:place_to_cut_line] + parent2_grid[
-                                                                                               place_of_broken_line][
-                                                                                           place_to_cut_line:]
-        new_child = Grid(parent1_grid[:place_of_broken_line] + [broken_line] + parent2_grid[place_of_broken_line + 1:],
-                         N)
+        place_to_cut_line = place_to_cut_grid
+        place_of_broken_line = N - place_to_cut_grid #!!!!!!!!!!!!!!!!
+        broken_line: list[bool] = parent1_grid[:place_to_cut_line] \
+                                  + parent2_grid[place_to_cut_line:]
+
+        new_broken_line : list[list[bool]] = []
+        for i in range (0,N):
+            first = i * N
+            last = first + N
+            new_broken_line.append(broken_line[first:last])
+
+        new_child = Grid(new_broken_line,N)
     new_child.mutate(p=mutate_p)
     return new_child
 
@@ -212,16 +229,34 @@ def prepare_next_generation(grids: list[Grid], N: int):
 
 # sets fitness for each grid based on rules given
 def calculate_fitness_for_each_grid(grids: list[Grid], rows_rules: list[list[int]], cols_rules: list[list[int]]):
-    best_grid: Grid = grids[0]  # init
+    best_grid: Grid = grids[0]  # init best
+    worst_grid: Grid = grids[0]  # init worst
     for grid in grids:
         grid.set_fitness(rows_rules, cols_rules)  # so each grid will have grade calculated
         if grid.get_fitness() > best_grid.get_fitness():
             best_grid = grid
-    return best_grid
+    for grid in grids:
+        grid.set_fitness(rows_rules, cols_rules)  # so each grid will have grade calculated
+        if grid.get_fitness() < worst_grid.get_fitness():
+            worst_grid = grid
+    return best_grid, worst_grid
+
+
+def check_if_early_convergence(grids: list[Grid]):
+    fitness = grids[0].get_fitness()
+    size = int(len(grids))
+    tenth_size = int(len(grids)/10)
+    j = 0
+    for i in range(0, tenth_size):
+        j = r.randint(0, size - 1)
+        if fitness != grids[j].get_fitness():
+            return False
+    return True
 
 
 current_gen_girds: list[Grid] = []
 best_grid_all_gen: Grid = None
+worst_grid_all_gen: Grid = None
 population_size = 200
 total_frames = 0
 inherit_after_improvement = False
@@ -233,7 +268,7 @@ mutate_p = 0.1
 # simulates life cycle
 def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: list[list[int]],
                best_possible_grade: int):
-    global current_gen_girds, best_grid_all_gen, total_frames
+    global current_gen_girds, best_grid_all_gen, worst_grid_all_gen, total_frames
     total_frames += 1
 
     not_improved_grids: list[Grid] = []
@@ -245,20 +280,23 @@ def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: l
     # calculate_fitness_for_each_grid(not_improved_grids, rows_rules, cols_rules)
 
     # get best grid
-    best_grid_current_gen = calculate_fitness_for_each_grid(current_gen_girds, rows_rules, cols_rules)
+    best_grid_current_gen, worst_grid_all_gen = calculate_fitness_for_each_grid(current_gen_girds, rows_rules, cols_rules)
+    if check_if_early_convergence(current_gen_girds):
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
-    # if we got better grid, lets notify user and put it as the img
+
     if best_grid_current_gen.get_fitness() > best_grid_all_gen.get_fitness():
+        # if we got better grid, lets notify user and put it as the img
         best_grid_all_gen = best_grid_current_gen.copy()
-        img.set_data(best_grid_all_gen.get_grid())
-        percent_done = (best_grid_all_gen.get_fitness() / best_possible_grade) * 100
-        print('best %.2f' % best_grid_all_gen.get_fitness(), "| frame number %4d" % total_frames,
-              "| %.2f%% done" % percent_done)
-        # is it perfect score?
-        if best_grid_all_gen.get_fitness() >= best_possible_grade:
-            print('this is the best you will get')
-            ani.event_source.stop()  # stop because there is no reason to continue
-        return img
+    img.set_data(best_grid_all_gen.get_grid())
+    percent_done = (best_grid_all_gen.get_fitness() / best_possible_grade) * 100
+    print('best %.2f' % best_grid_current_gen.get_fitness(),
+          'worst %.2f' % worst_grid_all_gen.get_fitness(), "| frame number %4d" % total_frames,
+          "| %.2f%% done" % percent_done)
+    # is it perfect score?
+    if best_grid_all_gen.get_fitness() >= best_possible_grade:
+        print('this is the best you will get')
+        ani.event_source.stop()  # stop because there is no reason to continue
 
     # notify user 200 frames has passed
     if total_frames % 200 == 0:
@@ -267,17 +305,24 @@ def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: l
     generation_to_inherit: list[Grid] = not_improved_grids
     if inherit_after_improvement:
         generation_to_inherit = current_gen_girds
+
+    for grid in generation_to_inherit: #!!!!!!!!!!!!
+        grid.set_fitness(rows_rules, cols_rules)
+
     current_gen_girds = prepare_next_generation(generation_to_inherit, N)
+
+    return img
 
 
 
 def main():
-    global current_gen_girds, best_grid_all_gen, ani
+    global current_gen_girds, best_grid_all_gen, worst_grid_all_gen, ani
     rows, cols = get_rows_cols_from_txt_file("5x5_1.txt")
     N = len(cols)  # since every1 is square
     for _ in range(population_size):
         current_gen_girds.append(Grid(init_grid(N=N, p=0.5), N))
     best_grid_all_gen = current_gen_girds[0]  # init best grid
+    worst_grid_all_gen = current_gen_girds[0]  # init worst grid
     best_possible_score = (2 * bonus_score) * (N * 2)
     figure, axes = plt.subplots()
     cmap = ListedColormap(['w', 'k'])
