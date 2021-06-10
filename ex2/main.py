@@ -183,6 +183,15 @@ def display_each_value_by_probability(grids: list[Grid]):
     return arr
 
 
+def display_each_value_by_probability2(grids: list[Grid]):
+    arr = []
+    sum = 0
+    for grid in grids:
+        for i in range(0, int(grid.get_fitness())):
+            arr.append(grid)
+    return arr
+
+
 # generates child from parents details
 def cross_over(parent1: Grid, parent2: Grid, N: int):
     grid_size = N*N  # N*N
@@ -215,15 +224,46 @@ def cross_over(parent1: Grid, parent2: Grid, N: int):
     new_child.mutate(p=mutate_p)
     return new_child
 
+def elitism (grids: list[Grid], len: int):
+    list_of_best: list[Grid] = []
+    for i in range(0, len):
+        list_of_best.append(grids[i])
+    list_of_best.sort(key=lambda x: x.fitness)
+    for grid in grids:
+        if grid.get_fitness() > list_of_best[0].get_fitness():
+            list_of_best.pop(0)
+            list_of_best.append(grid)
+            list_of_best.sort(key=lambda x: x.fitness)
+    return list_of_best
+
 
 # return new grid after changing it
 def prepare_next_generation(grids: list[Grid], N: int):
     new_grids = []
-    arr = display_each_value_by_probability(grids)
+    # arr = display_each_value_by_probability(grids)
+    arr = display_each_value_by_probability2(grids)
+    best_grids = elitism(grids, 10)  # save the best 10 grids
+    best_grids_copy = best_grids.copy()
+
+    for grid in grids:
+        for best in best_grids:
+            if best == grid:
+                best_grids.remove(best)
+                grids.remove(grid)
+
     for _ in range(len(grids)):
         grid_parent1: Grid = random.choice(arr)
         grid_parent2: Grid = random.choice(arr)
         new_grids.append(cross_over(grid_parent1, grid_parent2, N))
+
+    length = int(len(best_grids_copy) - len(best_grids))
+    i = 0
+    for grid in best_grids_copy:
+        if i >= length:
+            break
+        new_grids.append(grid)
+        i += 1
+
     return new_grids
 
 
