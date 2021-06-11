@@ -9,7 +9,7 @@ import math
 
 
 class Grid(object):
-    def __init__(self, g: list[list[bool]], n, fitness=0):
+    def __init__(self, g: list[list[int]], n, fitness=0):
         self.grid = g
         self.N = n
         self.fitness = fitness
@@ -17,7 +17,7 @@ class Grid(object):
     def get_grid(self):
         return self.grid
 
-    def get_fitness_line_By_line(self, lines: list[list[bool]], rules: list[list[int]], rows_or_cols: str):
+    def get_fitness_line_By_line(self, lines: list[list[int]], rules: list[list[int]], rows_or_cols: str):
         fitness = 0
         for i, (line, rule) in enumerate(zip(lines, rules)):
             fitness += self.get_line_fitness(line, rule, i, rows_or_cols)
@@ -34,7 +34,7 @@ class Grid(object):
         return self.fitness
 
     # get fitness based on how close was the solution to the desired one
-    def get_line_fitness(self, line: List[bool], line_rules: List[int], i: int, rows_or_cols: str):
+    def get_line_fitness(self, line: List[int], line_rules: List[int], i: int, rows_or_cols: str):
         segments = get_segments(line)
         a = get_line_bits_difference_score(segments, line_rules, self.N)
         b = get_list_similarity(segments, line_rules)
@@ -43,7 +43,7 @@ class Grid(object):
             retval *= bonus_score
         return retval
 
-    def improve_line(self, line: list[bool], rule: list[int]):
+    def improve_line(self, line: list[int], rule: list[int]):
         segments = get_segments(line)
         # switch 1 bit
         if get_line_bits_difference_score(segments, rule) < 1:
@@ -76,7 +76,7 @@ def get_segments(line):
     segments = []
     segment_length = 0
     for square in line:
-        if not square:  # if we're at 0
+        if square == 0:
             if segment_length > 0:
                 segments.append(segment_length)
                 segment_length = 0
@@ -158,7 +158,7 @@ def get_rows_cols_from_txt_file(filename: str):
 
 
 def init_grid(N: int, p: float):
-    return np.random.choice(a=[False, True], size=(N, N), p=[p, 1 - p]).tolist()
+    return np.random.choice(a=[0, 1], size=(N, N), p=[p, 1 - p]).tolist()
 
 
 # returns array of lines according to their probability
@@ -181,20 +181,22 @@ def display_each_value_by_probability(grids: list[Grid]):
 
 # generates child from parents details
 def cross_over(parent1: Grid, parent2: Grid, N: int):
-    grid_size = N  # N*N
+    # grid_size = N * N
+    grid_size = N
     place_to_cut_grid = random.randrange(0, grid_size)
     parent1_grid = parent1.get_grid()
     parent2_grid = parent2.get_grid()
-    if place_to_cut_grid % N == 0:
-        new_child = Grid(parent1_grid[:place_to_cut_grid] + parent2_grid[place_to_cut_grid:], N)
-    else:
-        place_to_cut_line = place_to_cut_grid % N
-        place_of_broken_line = int(place_to_cut_grid / N)
-        broken_line: list[bool] = parent1_grid[place_of_broken_line][:place_to_cut_line] + parent2_grid[
-                                                                                               place_of_broken_line][
-                                                                                           place_to_cut_line:]
-        new_child = Grid(parent1_grid[:place_of_broken_line] + [broken_line] + parent2_grid[place_of_broken_line + 1:],
-                         N)
+    new_child = Grid(parent1_grid[:place_to_cut_grid] + parent2_grid[place_to_cut_grid:], N)
+    # if place_to_cut_grid % N == 0:
+    #     new_child = Grid(parent1_grid[:place_to_cut_grid] + parent2_grid[place_to_cut_grid:], N)
+    # else:
+    #     place_to_cut_line = place_to_cut_grid % N
+    #     place_of_broken_line = int(place_to_cut_grid / N)
+    #     lines_from_parent1 = parent1_grid[:place_of_broken_line]
+    #     lines_from_parent2 = parent2_grid[place_of_broken_line + 1:]
+    #     line_from_both_parents: list[int] = parent1_grid[place_of_broken_line][:place_to_cut_line] + \
+    #                               parent2_grid[place_of_broken_line][place_to_cut_line:]
+    #     new_child = Grid(lines_from_parent1 + [line_from_both_parents] + lines_from_parent2, N)
     new_child.mutate(p=mutate_p)
     return new_child
 
@@ -220,49 +222,51 @@ def calculate_fitness_for_each_grid(grids: list[Grid], rows_rules: list[list[int
     return best_grid
 
 
-current_gen_girds: list[Grid] = []
-best_grid_all_gen: Grid = None
-population_size = 200
-total_frames = 0
-inherit_after_improvement = False
-bonus_score = 1.5
-ani: animation.FuncAnimation
-mutate_p = 0.1
-
-
 # simulates life cycle
 def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: list[list[int]],
-               best_possible_grade: int):
-    global current_gen_girds, best_grid_all_gen, total_frames
+               best_possible_grade: int, inherit_after_improvement: bool):
+    global current_gen_girds, best_grid_all_gen, total_frames, no_change_count
     total_frames += 1
 
     not_improved_grids: list[Grid] = []
     # improve each grid by rows
     for grid in current_gen_girds:
-        not_improved_grids.append(grid.copy())
+        not_improved_grid: Grid = grid.copy()
         grid.improve(line_rules=rows_rules)
+        if not inherit_after_improvement:
+            not_improved_grids.append(Grid(not_improved_grid.get_grid(), N, grid.get_fitness()))
 
-    # calculate_fitness_for_each_grid(not_improved_grids, rows_rules, cols_rules)
+    if not inherit_after_improvement:
+        calculate_fitness_for_each_grid(not_improved_grids, rows_rules, cols_rules)
 
     # get best grid
     best_grid_current_gen = calculate_fitness_for_each_grid(current_gen_girds, rows_rules, cols_rules)
 
+    no_change_count +=1
     # if we got better grid, lets notify user and put it as the img
     if best_grid_current_gen.get_fitness() > best_grid_all_gen.get_fitness():
+        no_change_count = 0
         best_grid_all_gen = best_grid_current_gen.copy()
-        img.set_data(best_grid_all_gen.get_grid())
+        # img.set_data(best_grid_all_gen.get_grid())
         percent_done = (best_grid_all_gen.get_fitness() / best_possible_grade) * 100
         print('best %.2f' % best_grid_all_gen.get_fitness(), "| frame number %4d" % total_frames,
               "| %.2f%% done" % percent_done)
         # is it perfect score?
         if best_grid_all_gen.get_fitness() >= best_possible_grade:
             print('this is the best you will get')
-            ani.event_source.stop()  # stop because there is no reason to continue
-        return img
+            # ani.event_source.stop()  # stop because there is no reason to continue
+        # return img
 
     # notify user 200 frames has passed
     if total_frames % 200 == 0:
         print("--------frame number %4d--------" % total_frames)
+    if no_change_count >= 400:
+        no_change_count = 0
+        print("let's mix things up, fram num %4d" % total_frames)
+        # let's shuffle a bit
+        for grid in current_gen_girds:
+            grid.mutate(p=0.2)  # try to mix up a little bit
+
 
     generation_to_inherit: list[Grid] = not_improved_grids
     if inherit_after_improvement:
@@ -270,26 +274,100 @@ def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: l
     current_gen_girds = prepare_next_generation(generation_to_inherit, N)
 
 
+# simulates lamark life cycle
+def lamark_life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: list[list[int]],
+                      best_possible_grade: int):
+    life_cycle(frameNum, img, N, rows_rules, cols_rules, best_possible_grade, inherit_after_improvement=True)
+
+
+# simulates lamark life cycle
+def darwin_life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: list[list[int]],
+                      best_possible_grade: int):
+    life_cycle(frameNum, img, N, rows_rules, cols_rules, best_possible_grade, inherit_after_improvement=False)
+
+
+def regular_solution(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: list[list[int]],
+                     best_possible_grade: int):
+    global current_gen_girds, best_grid_all_gen, total_frames
+    total_frames += 1
+
+    not_improved_grids: list[Grid] = []
+    # improve each grid by rows
+    for grid in current_gen_girds:
+        grid.improve(line_rules=rows_rules)
+
+    # get best grid
+    best_grid_current_gen = calculate_fitness_for_each_grid(current_gen_girds, rows_rules, cols_rules)
+
+    # if we got better grid, lets notify user and put it as the img
+    if best_grid_current_gen.get_fitness() > best_grid_all_gen.get_fitness():
+        best_grid_all_gen = best_grid_current_gen.copy()
+        # img.set_data(best_grid_all_gen.get_grid())
+        percent_done = (best_grid_all_gen.get_fitness() / best_possible_grade) * 100
+        print('best %.2f' % best_grid_all_gen.get_fitness(), "| frame number %4d" % total_frames,
+              "| %.2f%% done" % percent_done)
+        # is it perfect score?
+        if best_grid_all_gen.get_fitness() >= best_possible_grade:
+            print('this is the best you will get')
+            # ani.event_source.stop()  # stop because there is no reason to continue
+        # return img
+
+    # notify user 200 frames has passed
+    if total_frames % 200 == 0:
+        # for grid in current_gen_girds:
+        #     grid.mutate(p=mutate_p)
+        print("--------frame number %4d--------" % total_frames)
+
+
+def get_life_cycle_method(method: str):
+    return {
+        LAMARK: lamark_life_cycle,
+        DARWIN: darwin_life_cycle,
+        REGULAR: regular_solution,
+    }.get(method, LAMARK)  # default is LAMARK if method not found
+
+
+current_gen_girds: list[Grid] = []
+best_grid_all_gen: Grid = None
+population_size = 500
+no_change_count = 0
+total_frames = 0
+bonus_score = 1.5
+ani: animation.FuncAnimation
+mutate_p = 0.1
+REGULAR = "REGULAR"  # my invention of function
+DARWIN = "DARWIN"  # inheritance without improvement
+LAMARK = "LAMARK"  # inheritance with improvement
+
 
 def main():
     global current_gen_girds, best_grid_all_gen, ani
-    rows, cols = get_rows_cols_from_txt_file("5x5_1.txt")
+    board_name = "10x10_1.txt"
+    rows, cols = get_rows_cols_from_txt_file(board_name)
     N = len(cols)  # since every1 is square
     for _ in range(population_size):
         current_gen_girds.append(Grid(init_grid(N=N, p=0.5), N))
     best_grid_all_gen = current_gen_girds[0]  # init best grid
     best_possible_score = (2 * bonus_score) * (N * 2)
+    mathod = LAMARK
+    print('board_name:', board_name)
+    print('method:', mathod)
+    print('population_size:', population_size)
+    print('mutate_p:', mutate_p)
+    life_cycle_method = get_life_cycle_method(mathod)
     figure, axes = plt.subplots()
-    cmap = ListedColormap(['w', 'k'])
-    img = axes.imshow(current_gen_girds[0].get_grid(), interpolation='nearest', cmap=cmap)
-    ani = animation.FuncAnimation(figure,
-                                  func=life_cycle,
-                                  fargs=(img, N, rows, cols, best_possible_score),
-                                  frames=10,
-                                  interval=10,  # millisecond to interval
-                                  save_count=50,
-                                  repeat=True)
-    plt.show()
+    while best_grid_all_gen.get_fitness() <= best_possible_score:
+        life_cycle_method(0, None, N, rows, cols, best_possible_score)
+    # img = axes.imshow(current_gen_girds[0].get_grid(), interpolation='nearest',
+    #                   cmap=ListedColormap(['w', 'k']))  # w- white, k- black
+    # ani = animation.FuncAnimation(figure,
+    #                               func=life_cycle_method,
+    #                               fargs=(img, N, rows, cols, best_possible_score),
+    #                               frames=10,
+    #                               interval=10,  # millisecond to interval
+    #                               save_count=50,
+    #                               repeat=True)
+    # plt.show()
 
 
 if __name__ == '__main__':
