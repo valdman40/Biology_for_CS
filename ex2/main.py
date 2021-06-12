@@ -242,7 +242,7 @@ def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: l
     # get best grid
     best_grid_current_gen = calculate_fitness_for_each_grid(current_gen_girds, rows_rules, cols_rules)
 
-    no_change_count +=1
+    no_change_count += 1
     # if we got better grid, lets notify user and put it as the img
     if best_grid_current_gen.get_fitness() > best_grid_all_gen.get_fitness():
         no_change_count = 0
@@ -254,19 +254,19 @@ def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: l
         # is it perfect score?
         if best_grid_all_gen.get_fitness() >= best_possible_grade:
             print('this is the best you will get')
+            # exit(0)
             # ani.event_source.stop()  # stop because there is no reason to continue
         # return img
 
     # notify user 200 frames has passed
     if total_frames % 200 == 0:
         print("--------frame number %4d--------" % total_frames)
-    if no_change_count >= 400:
-        no_change_count = 0
-        print("let's mix things up, fram num %4d" % total_frames)
-        # let's shuffle a bit
-        for grid in current_gen_girds:
-            grid.mutate(p=0.2)  # try to mix up a little bit
-
+    # if no_change_count >= 400:
+    #     no_change_count = 0
+    #     print("let's mix things up, fram num %4d" % total_frames)
+    #     # let's shuffle a bit
+    #     for grid in current_gen_girds:
+    #         grid.mutate(p=0.2)  # try to mix up a little bit
 
     generation_to_inherit: list[Grid] = not_improved_grids
     if inherit_after_improvement:
@@ -340,21 +340,119 @@ DARWIN = "DARWIN"  # inheritance without improvement
 LAMARK = "LAMARK"  # inheritance with improvement
 
 
+def get_board_name(board_number: int):
+    return {
+        1: '5x5_1.txt',
+        2: '5x5_2.txt',
+        3: '10x10_1.txt',
+        4: 'pawn.txt',
+        5: 'wheel.txt',
+        6: 'fish.txt',
+    }.get(board_number, '5x5_1.txt')
+
+
+# asks user for board name
+def get_board_from_user_input():
+    while True:
+        print('please choose board:\n'
+              '1-> 5x5_1.txt, '
+              '2-> 5x5_2.txt, '
+              '3-> 10x10_1.txt, '
+              '4-> pawn.txt (15x15), '
+              '5-> wheel.txt (15x15), '
+              '6-> fish.txt (25x25)'
+              )
+        user_input = input()
+        try:
+            user_input = int(user_input)
+            if user_input > 6 or user_input < 1:
+                print('not valid number')
+            else:
+                break
+        except:
+            print('please enter valid input 1-6')
+    board_name = get_board_name(user_input)
+    return board_name
+
+
+def get_method_name(method_index: int):
+    return {
+        1: f'{LAMARK}',
+        2: f'{DARWIN}',
+        3: f'{REGULAR}',
+    }.get(method_index, LAMARK)
+
+
+# asks user for method name
+def get_method_from_user_input():
+    while True:
+        print('please choose method:\n'
+              f'1-> {LAMARK} ,'
+              f'2-> {DARWIN} ,'
+              f'3-> {REGULAR}'
+              )
+        user_input = input()
+        try:
+            user_input = int(user_input)
+            if user_input > 3 or user_input < 1:
+                print('not valid number')
+            else:
+                break
+        except:
+            print('please enter valid input 1-3')
+    method_name = get_method_name(user_input)
+    return method_name
+
+
+# asks user for population size
+def get_population_size_from_user_input():
+    while True:
+        print('enter population size:')
+        user_input = input()
+        try:
+            user_input = int(user_input)
+            if user_input > 500 or user_input < 100:
+                print('not valid size')
+            else:
+                break
+        except:
+            print('please enter valid input 100-500')
+    return user_input
+
+
+# asks user for mutate rate
+def get_mutate_rate_from_user_input():
+    while True:
+        print('enter mutate rate:')
+        user_input = input()
+        try:
+            user_input = float(user_input)
+            if user_input > 1 or user_input < 0:
+                print('not valid rate of mutate')
+            else:
+                break
+        except:
+            print('please enter valid input 0-1')
+    return user_input
+
+
 def main():
-    global current_gen_girds, best_grid_all_gen, ani
-    board_name = "10x10_1.txt"
+    global current_gen_girds, best_grid_all_gen, ani, mutate_p, population_size
+    board_name = get_board_from_user_input()
+    method = get_method_from_user_input()
+    population_size = get_population_size_from_user_input()
+    mutate_p = get_mutate_rate_from_user_input()
     rows, cols = get_rows_cols_from_txt_file(board_name)
     N = len(cols)  # since every1 is square
     for _ in range(population_size):
         current_gen_girds.append(Grid(init_grid(N=N, p=0.5), N))
     best_grid_all_gen = current_gen_girds[0]  # init best grid
     best_possible_score = (2 * bonus_score) * (N * 2)
-    mathod = LAMARK
     print('board_name:', board_name)
-    print('method:', mathod)
+    print('method:', method)
     print('population_size:', population_size)
     print('mutate_p:', mutate_p)
-    life_cycle_method = get_life_cycle_method(mathod)
+    life_cycle_method = get_life_cycle_method(method)
     figure, axes = plt.subplots()
     while best_grid_all_gen.get_fitness() <= best_possible_score:
         life_cycle_method(0, None, N, rows, cols, best_possible_score)
