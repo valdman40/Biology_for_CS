@@ -255,18 +255,19 @@ def life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: l
         if best_grid_all_gen.get_fitness() >= best_possible_grade:
             print('this is the best you will get')
             # exit(0)
-            # ani.event_source.stop()  # stop because there is no reason to continue
-        # return img
+            ani.event_source.stop()  # stop because there is no reason to continue
+        img.set_data(best_grid_all_gen.get_grid())
+        return img
 
     # notify user 200 frames has passed
     if total_frames % 200 == 0:
         print("--------frame number %4d--------" % total_frames)
-    # if no_change_count >= 400:
-    #     no_change_count = 0
-    #     print("let's mix things up, fram num %4d" % total_frames)
-    #     # let's shuffle a bit
-    #     for grid in current_gen_girds:
-    #         grid.mutate(p=0.2)  # try to mix up a little bit
+    if no_change_count >= 400:
+        no_change_count = 0
+        print("let's mix things up, fram num %4d" % total_frames)
+        # let's shuffle a bit
+        for grid in current_gen_girds:
+            grid.mutate(p=0.25)  # try to mix up a little bit
 
     generation_to_inherit: list[Grid] = not_improved_grids
     if inherit_after_improvement:
@@ -288,7 +289,7 @@ def darwin_life_cycle(frameNum, img, N: int, rows_rules: list[list[int]], cols_r
 
 def regular_solution(frameNum, img, N: int, rows_rules: list[list[int]], cols_rules: list[list[int]],
                      best_possible_grade: int):
-    global current_gen_girds, best_grid_all_gen, total_frames
+    global current_gen_girds, best_grid_all_gen, total_frames, no_change_count
     total_frames += 1
 
     not_improved_grids: list[Grid] = []
@@ -299,8 +300,10 @@ def regular_solution(frameNum, img, N: int, rows_rules: list[list[int]], cols_ru
     # get best grid
     best_grid_current_gen = calculate_fitness_for_each_grid(current_gen_girds, rows_rules, cols_rules)
 
+    no_change_count += 1
     # if we got better grid, lets notify user and put it as the img
     if best_grid_current_gen.get_fitness() > best_grid_all_gen.get_fitness():
+        no_change_count = 0
         best_grid_all_gen = best_grid_current_gen.copy()
         # img.set_data(best_grid_all_gen.get_grid())
         percent_done = (best_grid_all_gen.get_fitness() / best_possible_grade) * 100
@@ -309,14 +312,20 @@ def regular_solution(frameNum, img, N: int, rows_rules: list[list[int]], cols_ru
         # is it perfect score?
         if best_grid_all_gen.get_fitness() >= best_possible_grade:
             print('this is the best you will get')
-            # ani.event_source.stop()  # stop because there is no reason to continue
-        # return img
+            ani.event_source.stop()  # stop because there is no reason to continue
+        img.set_data(best_grid_all_gen.get_grid())
+        return img
 
     # notify user 200 frames has passed
     if total_frames % 200 == 0:
-        # for grid in current_gen_girds:
-        #     grid.mutate(p=mutate_p)
         print("--------frame number %4d--------" % total_frames)
+
+    if no_change_count >= 400:
+        no_change_count = 0
+        print("let's mix things up, fram num %4d" % total_frames)
+        # let's shuffle a bit
+        for grid in current_gen_girds:
+            grid.mutate(p=0.25)  # try to mix up a little bit
 
 
 def get_life_cycle_method(method: str):
@@ -360,13 +369,17 @@ def get_board_from_user_input():
               '3-> 10x10_1.txt, '
               '4-> pawn.txt (15x15), '
               '5-> wheel.txt (15x15), '
-              '6-> fish.txt (25x25)'
+              '6-> fish.txt (25x25), '
+              '7-> put your own file'
               )
         user_input = input()
         try:
             user_input = int(user_input)
-            if user_input > 6 or user_input < 1:
+            if user_input > 7 or user_input < 1:
                 print('not valid number')
+            elif user_input == 7:
+                board_name = input()
+                return board_name
             else:
                 break
         except:
@@ -454,18 +467,18 @@ def main():
     print('mutate_p:', mutate_p)
     life_cycle_method = get_life_cycle_method(method)
     figure, axes = plt.subplots()
-    while best_grid_all_gen.get_fitness() <= best_possible_score:
-        life_cycle_method(0, None, N, rows, cols, best_possible_score)
-    # img = axes.imshow(current_gen_girds[0].get_grid(), interpolation='nearest',
-    #                   cmap=ListedColormap(['w', 'k']))  # w- white, k- black
-    # ani = animation.FuncAnimation(figure,
-    #                               func=life_cycle_method,
-    #                               fargs=(img, N, rows, cols, best_possible_score),
-    #                               frames=10,
-    #                               interval=10,  # millisecond to interval
-    #                               save_count=50,
-    #                               repeat=True)
-    # plt.show()
+    # while best_grid_all_gen.get_fitness() <= best_possible_score:
+    #     life_cycle_method(0, None, N, rows, cols, best_possible_score)
+    img = axes.imshow(current_gen_girds[0].get_grid(), interpolation='nearest',
+                      cmap=ListedColormap(['w', 'k']))  # w- white, k- black
+    ani = animation.FuncAnimation(figure,
+                                  func=life_cycle_method,
+                                  fargs=(img, N, rows, cols, best_possible_score),
+                                  frames=10,
+                                  interval=10,  # millisecond to interval
+                                  save_count=50,
+                                  repeat=True)
+    plt.show()
 
 
 if __name__ == '__main__':
