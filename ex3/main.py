@@ -127,7 +127,7 @@ def run_simulation(txt_filename, num_of_digits, number_of_runs, percent_to_pass_
             plt.show()
         total_matches = np.sum(digit_updated == digit_model)
         percent = (total_matches / len(digit_model)) * 100
-        # print("round num %d, percent of success = %d%%" % (_ + 1, percent))
+        print("round num %d, percent of success = %d%%" % (_ + 1, percent))
         if percent >= percent_to_pass_for_success:
             number_of_success += 1
 
@@ -140,10 +140,10 @@ def main():
     txt_filename = 'Digits.txt'
 
     # hyper parameters
-    num_of_digits = 2
+    num_of_digits = 9
     number_of_runs = 100
     percent_to_pass_for_success = 98
-    plot_digits = False
+    plot_digits = True
 
     x_axes = []  # num of digits
     y_axes = []  # rate of change
