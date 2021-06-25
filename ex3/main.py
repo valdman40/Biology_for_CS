@@ -85,10 +85,10 @@ def update(weight_matrix, example):
 
 
 # change 10 percent of the array
-def get_after_change_10_percent(arr):
+def get_after_change_n_percent(arr, n=10):
     arr_copy = arr.copy()
     list_of_numbers = get_list_of_increasing_numbers(0, len(arr_copy))
-    for _ in range(int(len(arr_copy) / 10)):
+    for _ in range(int(len(arr_copy) / n)):
         rand: int = random.choice(list_of_numbers)
         list_of_numbers.remove(rand)
         if arr_copy[rand] == 0:
@@ -98,7 +98,7 @@ def get_after_change_10_percent(arr):
     return arr_copy
 
 
-def run_simulation(txt_filename, num_of_digits, number_of_runs, percent_to_pass_for_success, plot):
+def run_simulation(txt_filename, num_of_digits, number_of_runs, percent_to_pass_for_success, plot, mix_up_percent):
     digits_line_by_line = get_digits_from_txt(txt_filename, num_of_digits)
 
     weight_matrix = get_weight_matrix(digits_line_by_line)
@@ -111,7 +111,7 @@ def run_simulation(txt_filename, num_of_digits, number_of_runs, percent_to_pass_
 
     number_of_success = 0
     for _ in range(number_of_runs):
-        digit_given = get_after_change_10_percent(digit_model)
+        digit_given = get_after_change_n_percent(digit_model, mix_up_percent)
         if plot:
             plt.imshow(digit_given.reshape(10, 10), aspect="auto")
             plt.title("digit after mix up")
@@ -137,18 +137,20 @@ def run_simulation(txt_filename, num_of_digits, number_of_runs, percent_to_pass_
 
 
 def main():
-    txt_filename = 'Digits.txt'
+    txt_filename = 'three_example.txt'
 
     # hyper parameters
-    num_of_digits = 9
+    num_of_digits = 17
     number_of_runs = 100
     percent_to_pass_for_success = 98
+    mix_up_percent = 5
     plot_digits = True
 
     x_axes = []  # num of digits
     y_axes = []  # rate of change
     z_axes = []  # success rate
-    x, y, z = run_simulation(txt_filename, num_of_digits, number_of_runs, percent_to_pass_for_success, plot_digits)
+    x, y, z = run_simulation(txt_filename, num_of_digits, number_of_runs, percent_to_pass_for_success, plot_digits,
+                             mix_up_percent)
     x_axes.append(x)
     y_axes.append(y)
     z_axes.append(z)
