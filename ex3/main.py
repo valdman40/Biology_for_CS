@@ -34,24 +34,25 @@ def get_digits_from_txt(filename, num_of_letters):
     return arr
 
 
-def get_weight_matrix(matrix_of_numbers):
-    column_size = matrix_of_numbers.shape[1]
-    similar_matrix = arr = np.zeros(shape=(column_size, column_size), dtype=int)
-    for j in range(matrix_of_numbers.shape[1]):
-        curr_check_column = matrix_of_numbers[:, j]
-        for k in range(matrix_of_numbers.shape[1]):
-            if j != k:
-                second_column = matrix_of_numbers[:, k]
-                sum_of_similar = 0
-                for i in range(len(curr_check_column)):
-                    if curr_check_column[i] == second_column[i]:
-                        sum_of_similar += 1
-                sum_of_different = len(curr_check_column) - sum_of_similar
-                grade = sum_of_similar - sum_of_different
-            else:
-                grade = matrix_of_numbers.shape[1] + 1
-            similar_matrix[j][k] = grade
-    return similar_matrix
+def get_weight_matrix(digits_line_by_line):
+    col_size = digits_line_by_line.shape[1]
+    weight_matrix = np.zeros(shape=(col_size, col_size))
+    for i in range(col_size):
+        weight_matrix[i][i] = col_size + 1
+        col = digits_line_by_line[:, i]
+        for j in range(col_size):
+            # means it's same cell ([i][i]), so we already did it above
+            if i == j:
+                continue
+            second_col = digits_line_by_line[:, j]
+            sum_of_similar = 0
+            for k in range(len(col)):
+                if col[k] == second_col[k]:
+                    sum_of_similar += 1
+            sum_of_different = len(col) - sum_of_similar
+            weight = sum_of_similar - sum_of_different
+            weight_matrix[i][j] = weight
+    return weight_matrix
 
 
 # returns list of numbers in increasing order
@@ -105,11 +106,16 @@ def run_simulation(txt_filename, num_of_digits, number_of_runs, percent_to_pass_
     digit_model = digits_line_by_line[0]
     if plot:
         plt.imshow(digit_model.reshape(10, 10), aspect="auto")
+        plt.title("digit model")
         plt.show()
 
     number_of_success = 0
     for _ in range(number_of_runs):
         digit_given = get_after_change_10_percent(digit_model)
+        if plot:
+            plt.imshow(digit_given.reshape(10, 10), aspect="auto")
+            plt.title("digit after mix up")
+            plt.show()
         digit_updated = update(weight_matrix, digit_given)
         # while not convergence
         while not (digit_updated == digit_given).all():
@@ -117,9 +123,11 @@ def run_simulation(txt_filename, num_of_digits, number_of_runs, percent_to_pass_
             digit_updated = update(weight_matrix, digit_given)
         if plot:
             plt.imshow(digit_updated.reshape(10, 10), aspect="auto")
+            plt.title("digit after update")
             plt.show()
         total_matches = np.sum(digit_updated == digit_model)
         percent = (total_matches / len(digit_model)) * 100
+        # print("round num %d, percent of success = %d%%" % (_ + 1, percent))
         if percent >= percent_to_pass_for_success:
             number_of_success += 1
 
@@ -132,7 +140,7 @@ def main():
     txt_filename = 'Digits.txt'
 
     # hyper parameters
-    num_of_digits = 3
+    num_of_digits = 2
     number_of_runs = 100
     percent_to_pass_for_success = 98
     plot_digits = False
