@@ -34,6 +34,12 @@ def get_digits_from_txt(filename, num_of_letters):
     return arr
 
 
+def change_0_to_1(arr):
+    indices_zero = arr == 0
+    arr[indices_zero] = -1  # replacing 0s with -1
+    return arr
+
+
 def get_weight_matrix(digits_line_by_line):
     col_size = digits_line_by_line.shape[1]
     weight_matrix = np.zeros(shape=(col_size, col_size))
@@ -84,11 +90,11 @@ def update(weight_matrix, example):
     return copy_example
 
 
-# change 10 percent of the array
+# change n percent of the array
 def get_after_change_n_percent(arr, n=10):
     arr_copy = arr.copy()
     list_of_numbers = get_list_of_increasing_numbers(0, len(arr_copy))
-    for _ in range(int(len(arr_copy) / n)):
+    for _ in range(n):
         rand: int = random.choice(list_of_numbers)
         list_of_numbers.remove(rand)
         if arr_copy[rand] == 0:
@@ -98,12 +104,18 @@ def get_after_change_n_percent(arr, n=10):
     return arr_copy
 
 
-def run_simulation(txt_filename, num_of_digits, number_of_runs, percent_to_pass_for_success, plot, mix_up_percent):
+def run_simulation(txt_filename, txt_prefect_digit, num_of_digits, number_of_runs, percent_to_pass_for_success, plot,
+                   mix_up_percent):
     digits_line_by_line = get_digits_from_txt(txt_filename, num_of_digits)
+
+    # digits_line_by_line = change_0_to_1(digits_line_by_line)
+
+    perfect_digit = get_digits_from_txt(txt_prefect_digit, 1)[0]
 
     weight_matrix = get_weight_matrix(digits_line_by_line)
 
     digit_model = digits_line_by_line[0]
+    digit_model = perfect_digit
     if plot:
         plt.imshow(digit_model.reshape(10, 10), aspect="auto")
         plt.title("digit model")
@@ -127,36 +139,137 @@ def run_simulation(txt_filename, num_of_digits, number_of_runs, percent_to_pass_
             plt.show()
         total_matches = np.sum(digit_updated == digit_model)
         percent = (total_matches / len(digit_model)) * 100
-        print("round num %d, percent of success = %d%%" % (_ + 1, percent))
+        # print("round num %d, percent of success = %d%%" % (_ + 1, percent))
         if percent >= percent_to_pass_for_success:
             number_of_success += 1
 
     success_rate = number_of_success / number_of_runs
-    print('success rate: %d%%' % (success_rate * 100))
-    return 0, 0, 0
+    return success_rate * 100
+
+
+def plot_3d_for_report(x, y, z):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    # ax.scatter(x, y, z)
+    ax.plot(x, y, z)
+    plt.xlabel('number of letters', fontsize=10)
+    plt.ylabel('mix upd percent', fontsize=10)
+    ax.set_zlabel('success rate', fontsize=10)
+    plt.show()
+
+
+def get_txt_dig_name(method_index: int):
+    return {
+        0: f'zero_perfect.txt',
+        1: f'one_perfect.txt',
+        2: f'two_perfect.txt',
+        3: f'three_perfect.txt',
+        4: f'four_perfect.txt',
+        5: f'five_perfect.txt',
+        6: f'six_perfect.txt',
+        7: f'seven_perfect.txt',
+        8: f'eight_perfect.txt',
+        9: f'nine_perfect.txt',
+    }.get(method_index, 0)
+
+
+def get_digit_to_find_from_user_input():
+    while True:
+        print('please choose digit you wish to play with')
+        user_input = input()
+        try:
+            user_input = int(user_input)
+            if user_input > 9 or user_input < 0:
+                print('not valid digit')
+            else:
+                break
+        except:
+            print('please enter valid input 0-9')
+    digit = get_txt_dig_name(user_input)
+    return digit
+
+
+def get_num_of_dig_from_user_input():
+    while True:
+        print('please how much different digits would you like to insert?')
+        user_input = input()
+        try:
+            user_input = int(user_input)
+            if user_input > 10 or user_input < 1:
+                print('not valid number')
+            else:
+                break
+        except:
+            print('please enter valid input 1-10')
+    amount = int(user_input)
+    return amount
+
+
+def get_plot_from_user_input():
+    while True:
+        print('would you like to view the digits output? 1-> yes, 0->no')
+        user_input = input()
+        try:
+            user_input = int(user_input)
+            if user_input > 1 or user_input < 0:
+                print('not valid number')
+            else:
+                break
+        except:
+            print('please enter valid input 0/1')
+    retval = False
+    if user_input == 1:
+        retval = True
+    return retval
 
 
 def main():
-    txt_filename = 'three_example.txt'
-
+    txt_filename = '1_perfect_digit_of_each.txt'
+    # txt_prefect_digit = 'zero_perfect.txt'
+    txt_prefect_digit = get_digit_to_find_from_user_input()
     # hyper parameters
-    num_of_digits = 17
+    num_of_different_digits = get_num_of_dig_from_user_input()
+    num_of_digits = num_of_different_digits
     number_of_runs = 100
-    percent_to_pass_for_success = 98
-    mix_up_percent = 5
-    plot_digits = True
+    percent_to_pass_for_success = 90
+    mix_up_percent = 10
+    plot_digits = get_plot_from_user_input()
 
-    x_axes = []  # num of digits
-    y_axes = []  # rate of change
-    z_axes = []  # success rate
-    x, y, z = run_simulation(txt_filename, num_of_digits, number_of_runs, percent_to_pass_for_success, plot_digits,
-                             mix_up_percent)
-    x_axes.append(x)
-    y_axes.append(y)
-    z_axes.append(z)
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(x_axes, y_axes, z_axes)
+    success_rate = run_simulation(txt_filename, txt_prefect_digit, num_of_digits, number_of_runs,
+                                  percent_to_pass_for_success, plot_digits,
+                                  mix_up_percent)
+    print('for %d letters, success rate: %d%%' % (num_of_different_digits, success_rate))
+
+    print('press somethong to exit')
+    input()
+    # x = []
+    # y = []
+    # z = []
+    # ar = [5, 10, 20, 50]
+    # for mix_up_percent in ar:
+    #     print('--------mix up percent =  %d--------' % mix_up_percent)
+    #     for num in range(1, num_of_different_digits + 1):
+    #         success_rate = run_simulation(txt_filename, txt_prefect_digit, num * 10, number_of_runs,
+    #                                       percent_to_pass_for_success, plot_digits,
+    #                                       mix_up_percent)
+    #         z.append(success_rate)
+    #         x.append(num)
+    #         y.append(mix_up_percent)
+    #         print('for %d letters, success rate: %d%%' % (num, success_rate))
+    # for num in range(1, num_of_different_digits):
+    #     success_rate = run_simulation(txt_filename, txt_prefect_digit, num * 10, number_of_runs,
+    #                                   percent_to_pass_for_success, plot_digits,
+    #                                   mix_up_percent)
+    #     x.append(success_rate)
+    #     y.append(num)
+    #     print('for %d letters, success rate: %d%%' % (num, success_rate))
+    # #
+    # # plot_3d_for_report(x, y, z)
+    # fig = plt.figure()
+    # plt.plot(y, x)
+    # fig.suptitle('Check for learning 0', fontsize=16)
+    # plt.xlabel('success rate', fontsize=10)
+    # plt.ylabel('number of letters', fontsize=10)
     # plt.show()
 
 
